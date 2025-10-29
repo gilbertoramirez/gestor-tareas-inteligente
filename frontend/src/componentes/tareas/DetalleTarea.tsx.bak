@@ -1,0 +1,227 @@
+import { useState } from 'react';
+import { X, Trash2, Edit2, Clock, Calendar } from 'lucide-react';
+import type { Tarea, EstadoTarea } from '../../tipos';
+import { useTareasStore } from '../../store';
+import { Boton, Badge } from '../comunes';
+import { 
+  obtenerColorPrioridad,
+  obtenerColorEstado,
+  obtenerTextoEstado,
+  timestampAFecha,
+  formatearFechaHora,
+  textoTiempoRestante
+} from '../../utilidades';
+
+interface DetalleTareaProps {
+  tarea: Tarea;
+  onCerrar: () => void;
+}
+
+const ESTADOS: EstadoTarea[] = ['pendiente', 'trabajando', 'pausada', 'revision', 'completada', 'cancelada'];
+
+export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
+  const { actualizarTarea, eliminarTarea } = useTareasStore();
+  const [eliminando, setEliminando] = useState(false);
+
+  const manejarCambioEstado = async (nuevoEstado: EstadoTarea) => {
+    try {
+      await actualizarTarea(tarea.id, { estado: nuevoEstado });
+      onCerrar();
+      window.location.reload();
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+    }
+  };
+
+  const manejarEliminar = async () => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta tarea?')) {
+      return;
+    }
+
+    try {
+      setEliminando(true);
+      await eliminarTarea(tarea.id);
+      onCerrar();
+      window.location.reload();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      setEliminando(false);
+    }
+  };
+
+  const fechaVencimiento = timestampAFecha(tarea.fechaVencimiento);
+  const fechaCreacion = timestampAFecha(tarea.creadaEn);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Overlay */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50"
+        onClick={onCerrar}
+      />
+      
+      {/* Panel lateral */}
+      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Detalle de la Tarea
+            </h2>
+            <button
+              onClick={onCerrar}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Título */}
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                {tarea.titulo}
+              </h3>
+              <Badge 
+                texto={obtenerTextoEstado(tarea.estado)}
+                color={obtenerColorEstado(tarea.estado)}
+              />
+            </div>
+
+            {/* Descripción */}
+            {tarea.descripcion && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Descripción
+                </h4>
+                <p className="text-gray-600 whitespace-pre-wrap">
+                  {tarea.descripcion}
+                </p>
+              </div>
+            )}
+
+            {/* Prioridad */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Análisis de Prioridad
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Puntuación Total</p>
+                  <div className={`text-3xl font-bold mt-1 px-3 py-2 rounded-lg inline-block ${obtenerColorPrioridad(tarea.prioridad.categoria)}`}>
+                    {tarea.prioridad.puntuacion}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Categoría</p>
+                  <p className="text-xl font-semibold text-gray-900 mt-1">
+                    {tarea.prioridad.categoria}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Urgencia</p>
+                  <p className="text-lg font-medium text-gray-900 mt-1">
+                    {tarea.prioridad.urgencia}/100
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Beneficio</p>
+                  <p className="text-lg font-medium text-gray-900 mt-1">
+                    {tarea.prioridad.beneficio}/100
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fechas y tiempo */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-gray-600">
+                <Calendar className="w-5 h-5" />
+                <div>
+                  <p className="text-sm font-medium">Fecha de vencimiento</p>
+                  <p className="text-sm">
+                    {formatearFechaHora(fechaVencimiento)} 
+                    <span className="ml-2 text-orange-600 font-medium">
+                      ({textoTiempoRestante(fechaVencimiento)})
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-gray-600">
+                <Clock className="w-5 h-5" />
+                <div>
+                  <p className="text-sm font-medium">Tiempo estimado</p>
+                  <p className="text-sm">
+                    {tarea.seguimientoTiempo.horasEstimadas} horas
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-gray-600">
+                <Edit2 className="w-5 h-5" />
+                <div>
+                  <p className="text-sm font-medium">Creada</p>
+                  <p className="text-sm">
+                    {formatearFechaHora(fechaCreacion)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Etiquetas */}
+            {tarea.etiquetas.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Etiquetas
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {tarea.etiquetas.map((etiqueta, index) => (
+                    <Badge 
+                      key={index}
+                      texto={etiqueta}
+                      color="bg-blue-100 text-blue-800"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Cambiar estado */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Cambiar Estado
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {ESTADOS.map((estado) => (
+                  <Boton
+                    key={estado}
+                    variante={tarea.estado === estado ? 'primario' : 'secundario'}
+                    onClick={() => manejarCambioEstado(estado)}
+                    className="text-sm"
+                  >
+                    {obtenerTextoEstado(estado)}
+                  </Boton>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <Boton
+              variante="peligro"
+              onClick={manejarEliminar}
+              cargando={eliminando}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-5 h-5" />
+              Eliminar Tarea
+            </Boton>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
