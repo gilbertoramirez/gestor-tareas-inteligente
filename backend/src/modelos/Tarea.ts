@@ -30,7 +30,8 @@ export interface Prioridad {
   puntuacion: number;
   categoria: CategoriaPrioridad;
   urgencia: number;
-  beneficio: number;
+  beneficioCategoriaId: string; // ID de la categoría seleccionada (ej: 'bienestar', 'profesion')
+  beneficioPuntos: number; // Puntos de la categoría (10-100)
   esfuerzo: number;
   ultimoCalculo: Timestamp;
   factores: {
@@ -98,7 +99,7 @@ export interface CrearTareaDTO {
   titulo: string;
   descripcion: string;
   fechaVencimiento: Date | string;
-  beneficio: number;
+  beneficioCategoriaId: string; // Ahora usa el ID de categoría en lugar de número
   horasEstimadas: number;
   etiquetas?: string[];
   dependencias?: string[];
@@ -109,7 +110,7 @@ export interface ActualizarTareaDTO {
   descripcion?: string;
   estado?: EstadoTarea;
   fechaVencimiento?: Date | string;
-  beneficio?: number;
+  beneficioCategoriaId?: string; // Cambiado de beneficio a beneficioCategoriaId
   horasEstimadas?: number;
   etiquetas?: string[];
 }

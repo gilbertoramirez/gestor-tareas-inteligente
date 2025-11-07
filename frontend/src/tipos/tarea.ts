@@ -12,7 +12,8 @@ export interface Prioridad {
   puntuacion: number;
   categoria: CategoriaPrioridad;
   urgencia: number;
-  beneficio: number;
+  beneficioCategoriaId: string; // 🔥 NUEVO: ID de la categoría
+  beneficioPuntos: number;       // 🔥 NUEVO: Puntos de la categoría (10-100)
   esfuerzo: number;
   ultimoCalculo: {
     seconds: number;
@@ -82,7 +83,6 @@ export interface Tarea {
   };
   historialEstados: any[];
   
-  // Nuevos campos para subtareas
   subtareas: Subtarea[];
   progresoSubtareas: ProgresoSubtareas;
 }
@@ -91,7 +91,7 @@ export interface CrearTareaDTO {
   titulo: string;
   descripcion: string;
   fechaVencimiento: string;
-  beneficio: number;
+  beneficioCategoriaId: string; // 🔥 CAMBIADO: de 'beneficio' a 'beneficioCategoriaId'
   horasEstimadas: number;
   etiquetas?: string[];
   dependencias?: string[];
@@ -102,7 +102,7 @@ export interface ActualizarTareaDTO {
   descripcion?: string;
   estado?: EstadoTarea;
   fechaVencimiento?: string;
-  beneficio?: number;
+  beneficioCategoriaId?: string; // 🔥 CAMBIADO: de 'beneficio' a 'beneficioCategoriaId'
   horasEstimadas?: number;
   etiquetas?: string[];
 }

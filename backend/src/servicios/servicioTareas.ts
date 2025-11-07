@@ -32,9 +32,10 @@ export class ServicioTareas {
       const ahora = Timestamp.now();
       const fechaVencimiento = new Date(datos.fechaVencimiento);
       
+      // Calcular prioridad usando el nuevo sistema de categorías
       const prioridad = servicioPrioridad.calcularPrioridad(
         fechaVencimiento,
-        datos.beneficio,
+        datos.beneficioCategoriaId,
         datos.horasEstimadas,
         datos.dependencias && datos.dependencias.length > 0,
         0
@@ -196,18 +197,21 @@ export class ServicioTareas {
         }
       }
       
-      if (datos.fechaVencimiento || datos.beneficio || datos.horasEstimadas) {
+      // Recalcular prioridad si cambió algún factor relevante
+      if (datos.fechaVencimiento || datos.beneficioCategoriaId || datos.horasEstimadas) {
         const fechaVencimiento = datos.fechaVencimiento 
           ? new Date(datos.fechaVencimiento)
           : tareaActual.fechaVencimiento.toDate();
         
-        const beneficio = datos.beneficio ?? tareaActual.prioridad.beneficio;
+        const beneficioCategoriaId = datos.beneficioCategoriaId ?? 
+          tareaActual.prioridad.beneficioCategoriaId;
+          
         const horasEstimadas = datos.horasEstimadas ?? 
           tareaActual.seguimientoTiempo.horasEstimadas;
         
         actualizacion.prioridad = servicioPrioridad.calcularPrioridad(
           fechaVencimiento,
-          beneficio,
+          beneficioCategoriaId,
           horasEstimadas,
           tareaActual.dependencias.length > 0,
           0

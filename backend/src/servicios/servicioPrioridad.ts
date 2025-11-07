@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { Prioridad, CategoriaPrioridad, Tarea } from '../modelos';
+import { obtenerPuntosPorCategoria } from '../constantes/categoriasPrioridad';
 
 export class ServicioPrioridad {
   
@@ -8,7 +9,7 @@ export class ServicioPrioridad {
    */
   calcularPrioridad(
     fechaVencimiento: Date,
-    beneficio: number,
+    beneficioCategoriaId: string,
     horasEstimadas: number,
     tieneDependencias: boolean = false,
     diasSinCambios: number = 0
@@ -17,8 +18,9 @@ export class ServicioPrioridad {
     // 1. Calcular URGENCIA (0-100) basada en días restantes
     const urgencia = this.calcularUrgencia(fechaVencimiento);
     
-    // 2. BENEFICIO ya viene del usuario (0-100)
-    const beneficioNormalizado = Math.min(Math.max(beneficio, 0), 100);
+    // 2. BENEFICIO ahora viene de la categoría seleccionada
+    const beneficioPuntos = obtenerPuntosPorCategoria(beneficioCategoriaId) || 50;
+    const beneficioNormalizado = Math.min(Math.max(beneficioPuntos, 0), 100);
     
     // 3. Calcular factor de ESFUERZO (inverso: menos esfuerzo = mayor prioridad)
     const factorEsfuerzo = this.calcularFactorEsfuerzo(horasEstimadas);
@@ -43,7 +45,8 @@ export class ServicioPrioridad {
       puntuacion: puntuacionFinal,
       categoria: this.categorizarPrioridad(puntuacionFinal),
       urgencia: Math.round(urgencia),
-      beneficio: beneficioNormalizado,
+      beneficioCategoriaId,
+      beneficioPuntos,
       esfuerzo: horasEstimadas,
       ultimoCalculo: Timestamp.now(),
       factores: {
@@ -122,7 +125,7 @@ export class ServicioPrioridad {
     
     return this.calcularPrioridad(
       tarea.fechaVencimiento.toDate(),
-      tarea.prioridad.beneficio,
+      tarea.prioridad.beneficioCategoriaId,
       tarea.seguimientoTiempo.horasEstimadas,
       tarea.dependencias.length > 0,
       diasSinCambios

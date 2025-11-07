@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Trash2, Edit2, Clock, Calendar } from 'lucide-react';
 import type { Tarea, EstadoTarea } from '../../tipos';
 import { useTareasStore } from '../../store';
@@ -20,24 +20,34 @@ interface DetalleTareaProps {
 
 const ESTADOS: EstadoTarea[] = ['pendiente', 'trabajando', 'pausada', 'revision', 'completada', 'cancelada'];
 
-export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
-  const { actualizarTarea, eliminarTarea } = useTareasStore();
+export const DetalleTarea = ({ tarea: tareaInicial, onCerrar }: DetalleTareaProps) => {
+  const { actualizarTarea, eliminarTarea, tareas } = useTareasStore();
   const [eliminando, setEliminando] = useState(false);
+  
+  // 🔥 NUEVO: Estado local que se actualiza automáticamente
+  const [tareaActual, setTareaActual] = useState<Tarea>(tareaInicial);
 
-  // Verificar si se puede completar la tarea (todas las subtareas deben estar completadas)
-  const todasSubtareasCompletadas = tarea.subtareas && tarea.subtareas.length > 0
-    ? tarea.subtareas.every(s => s.estado === 'completada')
+  // 🔥 NUEVO: Efecto para sincronizar con el store
+  useEffect(() => {
+    const tareaActualizada = tareas.find(t => t.id === tareaInicial.id);
+    if (tareaActualizada) {
+      console.log('🔄 Tarea actualizada desde el store:', tareaActualizada);
+      setTareaActual(tareaActualizada);
+    }
+  }, [tareas, tareaInicial.id]);
+
+  const todasSubtareasCompletadas = tareaActual.subtareas && tareaActual.subtareas.length > 0
+    ? tareaActual.subtareas.every(s => s.estado === 'completada')
     : true;
 
   const manejarCambioEstado = async (nuevoEstado: EstadoTarea) => {
-    // Si intenta marcar como completada pero hay subtareas pendientes
     if (nuevoEstado === 'completada' && !todasSubtareasCompletadas) {
       alert('⚠️ Debes completar todas las subtareas antes de marcar esta tarea como completada');
       return;
     }
 
     try {
-      await actualizarTarea(tarea.id, { estado: nuevoEstado });
+      await actualizarTarea(tareaActual.id, { estado: nuevoEstado });
       onCerrar();
     } catch (error) {
       console.error('Error al cambiar estado:', error);
@@ -51,7 +61,7 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
 
     try {
       setEliminando(true);
-      await eliminarTarea(tarea.id);
+      await eliminarTarea(tareaActual.id);
       onCerrar();
     } catch (error) {
       console.error('Error al eliminar:', error);
@@ -59,8 +69,8 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
     }
   };
 
-  const fechaVencimiento = timestampAFecha(tarea.fechaVencimiento);
-  const fechaCreacion = timestampAFecha(tarea.creadaEn);
+  const fechaVencimiento = timestampAFecha(tareaActual.fechaVencimiento);
+  const fechaCreacion = timestampAFecha(tareaActual.creadaEn);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -89,22 +99,22 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
             {/* Título y estado */}
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                {tarea.titulo}
+                {tareaActual.titulo}
               </h3>
               <Badge 
-                texto={obtenerTextoEstado(tarea.estado)}
-                color={obtenerColorEstado(tarea.estado)}
+                texto={obtenerTextoEstado(tareaActual.estado)}
+                color={obtenerColorEstado(tareaActual.estado)}
               />
             </div>
 
             {/* Descripción */}
-            {tarea.descripcion && (
+            {tareaActual.descripcion && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
                   Descripción
                 </h4>
                 <p className="text-gray-600 whitespace-pre-wrap">
-                  {tarea.descripcion}
+                  {tareaActual.descripcion}
                 </p>
               </div>
             )}
@@ -117,29 +127,39 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Puntuación Total</p>
-                  <div className={`text-3xl font-bold mt-1 px-3 py-2 rounded-lg inline-block ${obtenerColorPrioridad(tarea.prioridad.categoria)}`}>
-                    {tarea.prioridad.puntuacion}
+                  <div className={`text-3xl font-bold mt-1 px-3 py-2 rounded-lg inline-block ${obtenerColorPrioridad(tareaActual.prioridad.categoria)}`}>
+                    {tareaActual.prioridad.puntuacion}
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Categoría</p>
                   <p className="text-xl font-semibold text-gray-900 mt-1">
-                    {tarea.prioridad.categoria}
+                    {tareaActual.prioridad.categoria}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Urgencia</p>
                   <p className="text-lg font-medium text-gray-900 mt-1">
-                    {tarea.prioridad.urgencia}/100
+                    {tareaActual.prioridad.urgencia}/100
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Beneficio</p>
                   <p className="text-lg font-medium text-gray-900 mt-1">
-                    {tarea.prioridad.beneficio}/100
+                    {tareaActual.prioridad.beneficioPuntos || tareaActual.prioridad.beneficio || 0}/100
                   </p>
                 </div>
               </div>
+              
+              {/* Mostrar categoría de beneficio si existe */}
+              {tareaActual.prioridad.beneficioCategoriaId && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Categoría de Beneficio</p>
+                  <p className="text-sm font-medium text-blue-600">
+                    {tareaActual.prioridad.beneficioCategoriaId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Fechas */}
@@ -162,7 +182,7 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
                 <div>
                   <p className="text-sm font-medium">Tiempo estimado</p>
                   <p className="text-sm">
-                    {tarea.seguimientoTiempo.horasEstimadas} horas
+                    {tareaActual.seguimientoTiempo.horasEstimadas} horas
                   </p>
                 </div>
               </div>
@@ -179,13 +199,13 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
             </div>
 
             {/* Etiquetas */}
-            {tarea.etiquetas.length > 0 && (
+            {tareaActual.etiquetas.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
                   Etiquetas
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {tarea.etiquetas.map((etiqueta, index) => (
+                  {tareaActual.etiquetas.map((etiqueta, index) => (
                     <Badge 
                       key={index}
                       texto={etiqueta}
@@ -196,11 +216,11 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
               </div>
             )}
 
-            {/* SUBTAREAS */}
+            {/* SUBTAREAS - 🔥 Usando tareaActual en lugar de tarea */}
             <div className="border-t border-gray-200 pt-6">
               <ListaSubtareas 
-                tareaId={tarea.id}
-                subtareas={tarea.subtareas || []}
+                tareaId={tareaActual.id}
+                subtareas={tareaActual.subtareas || []}
               />
             </div>
 
@@ -220,7 +240,7 @@ export const DetalleTarea = ({ tarea, onCerrar }: DetalleTareaProps) => {
                   return (
                     <Boton
                       key={estado}
-                      variante={tarea.estado === estado ? 'primario' : 'secundario'}
+                      variante={tareaActual.estado === estado ? 'primario' : 'secundario'}
                       onClick={() => manejarCambioEstado(estado)}
                       className="text-sm"
                       disabled={disabled}

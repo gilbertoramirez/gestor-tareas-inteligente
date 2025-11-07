@@ -17,7 +17,9 @@ const PUERTO = process.env.PUERTO || 3000;
 // Middlewares globales
 app.use(helmet()); // Seguridad HTTP
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.ALLOWED_ORIGINS?.split(',') 
+    : true,  // ✅ Permitir cualquier origen en desarrollo
   credentials: true
 }));
 app.use(express.json()); // Para parsear JSON
@@ -57,6 +59,12 @@ app.get('/salud', (req: Request, res: Response) => {
 });
 
 // Rutas de la API
+app.use('/api/tareas', (req, res, next) => {
+  console.log('🔍 DEBUG - Ruta completa:', req.method, req.path);
+  console.log('🔍 DEBUG - URL completa:', req.originalUrl);
+  next();
+});
+
 app.use('/api/tareas', rutasTareas);
 
 // Ruta para 404

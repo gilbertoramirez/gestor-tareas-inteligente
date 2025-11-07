@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Input, TextArea, Boton, Modal } from '../comunes';
 import { useTareasStore } from '../../store';
-import { validarTitulo, validarBeneficio, validarHorasEstimadas } from '../../utilidades';
+import { validarTitulo, validarHorasEstimadas } from '../../utilidades';
 import type { CrearTareaDTO } from '../../tipos';
 
 interface FormularioTareaProps {
@@ -16,26 +16,58 @@ interface SubtareaTemporal {
   descripcion: string;
 }
 
+interface CategoriaPrioridad {
+  id: string;
+  nombre: string;
+  puntos: number;
+  descripcion?: string;
+}
+
 export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => {
   const { crearTarea, agregarSubtarea, cargando } = useTareasStore();
   
-  const [datos, setDatos] = useState<CrearTareaDTO>({
+  const [datos, setDatos] = useState({
     titulo: '',
     descripcion: '',
     fechaVencimiento: '',
-    beneficio: 50,
+    beneficioCategoriaId: '', // 🔥 CAMBIADO: ahora es ID de categoría
     horasEstimadas: 1,
-    etiquetas: []
+    etiquetas: [] as string[]
   });
   
   const [etiquetaInput, setEtiquetaInput] = useState('');
   const [errores, setErrores] = useState<{ [key: string]: string }>({});
+  
+  // Estado para categorías
+  const [categorias, setCategorias] = useState<CategoriaPrioridad[]>([]);
+  const [cargandoCategorias, setCargandoCategorias] = useState(true);
   
   // Estado para subtareas temporales
   const [subtareas, setSubtareas] = useState<SubtareaTemporal[]>([]);
   const [mostrarFormSubtarea, setMostrarFormSubtarea] = useState(false);
   const [subtareaTitulo, setSubtareaTitulo] = useState('');
   const [subtareaDesc, setSubtareaDesc] = useState('');
+
+  // 🔥 Cargar categorías al montar el componente
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      try {
+        setCargandoCategorias(true);
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${API_BASE}/api/tareas/categorias`);
+        const data = await response.json();
+        setCategorias(data.categorias);
+      } catch (error) {
+        console.error('Error al cargar categorías:', error);
+      } finally {
+        setCargandoCategorias(false);
+      }
+    };
+
+    if (abierto) {
+      cargarCategorias();
+    }
+  }, [abierto]);
 
   const validarFormulario = (): boolean => {
     const nuevosErrores: { [key: string]: string } = {};
@@ -48,8 +80,9 @@ export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => 
       nuevosErrores.fechaVencimiento = 'La fecha de vencimiento es requerida';
     }
 
-    if (!validarBeneficio(datos.beneficio)) {
-      nuevosErrores.beneficio = 'El beneficio debe estar entre 0 y 100';
+    // 🔥 Validar categoría en lugar de beneficio
+    if (!datos.beneficioCategoriaId) {
+      nuevosErrores.beneficioCategoriaId = 'Debes seleccionar una categoría de prioridad';
     }
 
     if (!validarHorasEstimadas(datos.horasEstimadas)) {
@@ -96,25 +129,19 @@ export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => 
       
       const fechaISO = `${año}-${mes}-${dia}T${horas}:${minutos}:00.000Z`;
       
-      // Crear la tarea
+      // 🔥 Crear la tarea con beneficioCategoriaId
       await crearTarea({
         ...datos,
         fechaVencimiento: fechaISO
-      });
+      } as any);
       
-      // Si hay subtareas, necesitamos obtener el ID de la tarea recién creada
-      // Para simplificar, asumimos que la última tarea en el store es la recién creada
-      // En producción, crearTarea debería devolver la tarea con su ID
+      // Si hay subtareas, agregarlas
       if (subtareas.length > 0) {
-        // Esperar un momento para que se actualice el store
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Obtener la última tarea (la recién creada)
-        // Nota: esto es una simplificación, en producción deberías obtener el ID directamente
         const tareasStore = useTareasStore.getState().tareas;
         const tareaRecienCreada = tareasStore[tareasStore.length - 1];
         
-        // Agregar cada subtarea
         for (const subtarea of subtareas) {
           await agregarSubtarea(
             tareaRecienCreada.id,
@@ -129,7 +156,7 @@ export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => 
         titulo: '',
         descripcion: '',
         fechaVencimiento: '',
-        beneficio: 50,
+        beneficioCategoriaId: '',
         horasEstimadas: 1,
         etiquetas: []
       });
@@ -159,6 +186,9 @@ export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => 
       etiquetas: datos.etiquetas?.filter(e => e !== etiqueta) || []
     });
   };
+
+  // 🔥 Obtener la categoría seleccionada
+  const categoriaSeleccionada = categorias?.find(c => c.id === datos.beneficioCategoriaId);
 
   return (
     <Modal abierto={abierto} onCerrar={onCerrar} titulo="📝 Nueva Tarea" ancho="grande">
@@ -206,23 +236,68 @@ export const FormularioTarea = ({ abierto, onCerrar }: FormularioTareaProps) => 
           </div>
         </div>
 
+        {/* 🔥 NUEVO: Selector de Categoría de Prioridad */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Beneficio esperado: {datos.beneficio}
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Categoría de Prioridad *
+            {categoriaSeleccionada && (
+              <span className="ml-2 text-blue-600 font-bold">
+                ({categoriaSeleccionada.puntos} pts)
+              </span>
+            )}
           </label>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={datos.beneficio}
-            onChange={(e) => setDatos({ ...datos, beneficio: parseInt(e.target.value) })}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>Bajo (0)</span>
-            <span>Medio (50)</span>
-            <span>Alto (100)</span>
-          </div>
+          
+          {cargandoCategorias ? (
+            <div className="text-gray-500 text-sm py-2">Cargando categorías...</div>
+          ) : (
+            <>
+              <select
+                value={datos.beneficioCategoriaId}
+                onChange={(e) => setDatos({ ...datos, beneficioCategoriaId: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errores.beneficioCategoriaId ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Selecciona una categoría</option>
+                {categorias.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nombre} - {cat.puntos} puntos
+                  </option>
+                ))}
+              </select>
+              
+              {errores.beneficioCategoriaId && (
+                <p className="mt-1 text-sm text-red-600">{errores.beneficioCategoriaId}</p>
+              )}
+              
+              {/* Indicador visual de prioridad */}
+              {categoriaSeleccionada && (
+                <div className="mt-3">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${
+                        categoriaSeleccionada.puntos >= 80 ? 'bg-red-500' :
+                        categoriaSeleccionada.puntos >= 60 ? 'bg-orange-500' :
+                        categoriaSeleccionada.puntos >= 40 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${categoriaSeleccionada.puntos}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Bajo</span>
+                    <span className="font-medium">
+                      {categoriaSeleccionada.puntos >= 80 ? 'Muy Alto' :
+                       categoriaSeleccionada.puntos >= 60 ? 'Alto' :
+                       categoriaSeleccionada.puntos >= 40 ? 'Medio' :
+                       'Bajo'}
+                    </span>
+                    <span>Alto</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Subtareas */}

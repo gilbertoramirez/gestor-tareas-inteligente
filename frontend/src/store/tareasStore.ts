@@ -33,8 +33,10 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     try {
       set({ cargando: true, error: null });
       const tareas = await servicioTareas.listarTareas();
+      console.log('📦 Tareas cargadas:', tareas.length);
       set({ tareas, cargando: false });
     } catch (error: any) {
+      console.error('❌ Error cargando tareas:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -46,8 +48,10 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     try {
       set({ cargando: true, error: null });
       const tareas = await servicioTareas.obtenerListaPrioridades();
+      console.log('📦 Tareas por prioridad cargadas:', tareas.length);
       set({ tareas, cargando: false });
     } catch (error: any) {
+      console.error('❌ Error cargando tareas por prioridad:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -59,11 +63,13 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     try {
       set({ cargando: true, error: null });
       const nuevaTarea = await servicioTareas.crearTarea(datos);
+      console.log('✅ Tarea creada:', nuevaTarea.id);
       set((state) => ({
         tareas: [...state.tareas, nuevaTarea],
         cargando: false
       }));
     } catch (error: any) {
+      console.error('❌ Error creando tarea:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -75,15 +81,26 @@ export const useTareasStore = create<TareasState>((set, get) => ({
   actualizarTarea: async (id: string, datos: ActualizarTareaDTO) => {
     try {
       set({ cargando: true, error: null });
+      console.log('🔄 Actualizando tarea:', id, datos);
       const tareaActualizada = await servicioTareas.actualizarTarea(id, datos);
-      set((state) => ({
-        tareas: state.tareas.map(t => t.id === id ? tareaActualizada : t),
-        tareaSeleccionada: state.tareaSeleccionada?.id === id 
-          ? tareaActualizada 
-          : state.tareaSeleccionada,
-        cargando: false
-      }));
+      console.log('✅ Tarea actualizada desde API:', tareaActualizada);
+      
+      set((state) => {
+        const nuevasTareas = state.tareas.map(t => 
+          t.id === id ? tareaActualizada : t
+        );
+        console.log('📦 Store actualizado con', nuevasTareas.length, 'tareas');
+        
+        return {
+          tareas: nuevasTareas,
+          tareaSeleccionada: state.tareaSeleccionada?.id === id 
+            ? tareaActualizada 
+            : state.tareaSeleccionada,
+          cargando: false
+        };
+      });
     } catch (error: any) {
+      console.error('❌ Error actualizando tarea:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -96,6 +113,7 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     try {
       set({ cargando: true, error: null });
       await servicioTareas.eliminarTarea(id);
+      console.log('🗑️ Tarea eliminada:', id);
       set((state) => ({
         tareas: state.tareas.filter(t => t.id !== id),
         tareaSeleccionada: state.tareaSeleccionada?.id === id 
@@ -104,6 +122,7 @@ export const useTareasStore = create<TareasState>((set, get) => ({
         cargando: false
       }));
     } catch (error: any) {
+      console.error('❌ Error eliminando tarea:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -113,6 +132,7 @@ export const useTareasStore = create<TareasState>((set, get) => ({
   },
 
   seleccionarTarea: (tarea: Tarea | null) => {
+    console.log('👆 Tarea seleccionada:', tarea?.id);
     set({ tareaSeleccionada: tarea });
   },
 
@@ -120,8 +140,10 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     try {
       set({ cargando: true, error: null });
       const tareas = await servicioTareas.listarTareas({ estado });
+      console.log('🔍 Tareas filtradas por estado', estado, ':', tareas.length);
       set({ tareas, cargando: false });
     } catch (error: any) {
+      console.error('❌ Error filtrando tareas:', error);
       set({ 
         error: error.message, 
         cargando: false 
@@ -129,48 +151,86 @@ export const useTareasStore = create<TareasState>((set, get) => ({
     }
   },
 
-  // Acciones de subtareas
+  // 🔥 MEJORADO: Acciones de subtareas con logs
   agregarSubtarea: async (tareaId: string, titulo: string, descripcion: string) => {
     try {
+      console.log('➕ Agregando subtarea a tarea:', tareaId);
       const tareaActualizada = await servicioTareas.agregarSubtarea(tareaId, titulo, descripcion);
-      set((state) => ({
-        tareas: state.tareas.map(t => t.id === tareaId ? tareaActualizada : t),
-        tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
-          ? tareaActualizada 
-          : state.tareaSeleccionada
-      }));
+      console.log('✅ Subtarea agregada. Tarea actualizada:', tareaActualizada);
+      
+      set((state) => {
+        const nuevasTareas = state.tareas.map(t => 
+          t.id === tareaId ? tareaActualizada : t
+        );
+        
+        console.log('📦 Store actualizado después de agregar subtarea');
+        
+        return {
+          tareas: nuevasTareas,
+          tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
+            ? tareaActualizada 
+            : state.tareaSeleccionada
+        };
+      });
     } catch (error: any) {
-      console.error('Error al agregar subtarea:', error);
+      console.error('❌ Error agregando subtarea:', error);
       throw error;
     }
   },
 
   actualizarSubtarea: async (tareaId: string, subtareaId: string, estado: 'pendiente' | 'completada') => {
     try {
+      console.log('🔄 Actualizando subtarea:', subtareaId, 'a estado:', estado);
       const tareaActualizada = await servicioTareas.actualizarSubtarea(tareaId, subtareaId, estado);
-      set((state) => ({
-        tareas: state.tareas.map(t => t.id === tareaId ? tareaActualizada : t),
-        tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
-          ? tareaActualizada 
-          : state.tareaSeleccionada
-      }));
+      console.log('✅ Subtarea actualizada. Tarea actualizada:', tareaActualizada);
+      
+      set((state) => {
+        const nuevasTareas = state.tareas.map(t => 
+          t.id === tareaId ? tareaActualizada : t
+        );
+        
+        console.log('📦 Store actualizado después de actualizar subtarea');
+        console.log('📊 Subtareas actualizadas:', tareaActualizada.subtareas?.map(s => ({
+          id: s.id,
+          titulo: s.titulo,
+          estado: s.estado
+        })));
+        
+        return {
+          tareas: nuevasTareas,
+          tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
+            ? tareaActualizada 
+            : state.tareaSeleccionada
+        };
+      });
     } catch (error: any) {
-      console.error('Error al actualizar subtarea:', error);
+      console.error('❌ Error actualizando subtarea:', error);
       throw error;
     }
   },
 
   eliminarSubtarea: async (tareaId: string, subtareaId: string) => {
     try {
+      console.log('🗑️ Eliminando subtarea:', subtareaId);
       const tareaActualizada = await servicioTareas.eliminarSubtarea(tareaId, subtareaId);
-      set((state) => ({
-        tareas: state.tareas.map(t => t.id === tareaId ? tareaActualizada : t),
-        tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
-          ? tareaActualizada 
-          : state.tareaSeleccionada
-      }));
+      console.log('✅ Subtarea eliminada. Tarea actualizada:', tareaActualizada);
+      
+      set((state) => {
+        const nuevasTareas = state.tareas.map(t => 
+          t.id === tareaId ? tareaActualizada : t
+        );
+        
+        console.log('📦 Store actualizado después de eliminar subtarea');
+        
+        return {
+          tareas: nuevasTareas,
+          tareaSeleccionada: state.tareaSeleccionada?.id === tareaId 
+            ? tareaActualizada 
+            : state.tareaSeleccionada
+        };
+      });
     } catch (error: any) {
-      console.error('Error al eliminar subtarea:', error);
+      console.error('❌ Error eliminando subtarea:', error);
       throw error;
     }
   }

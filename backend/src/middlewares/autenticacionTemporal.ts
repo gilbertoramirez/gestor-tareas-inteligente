@@ -1,4 +1,12 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request as ExpressRequest, Response, NextFunction } from 'express';
+
+// Extender el tipo Request
+interface Request extends ExpressRequest {
+  usuario?: {
+    uid: string;
+    email?: string;
+  };
+}
 
 /**
  * Middleware temporal para desarrollo SIN autenticación real

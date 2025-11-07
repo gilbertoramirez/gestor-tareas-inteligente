@@ -1,10 +1,34 @@
-/// <reference path="../tipos/express.d.ts" />
-
-import { Request, Response } from 'express';
+import { Request as ExpressRequest, Response } from 'express';
 import { servicioTareas } from '../servicios';
 import { CrearTareaDTO, ActualizarTareaDTO } from '../modelos';
+import { esCategorialValida, CATEGORIAS_PRIORIDAD } from '../constantes/categoriasPrioridad';
+
+// Extender el tipo Request
+interface Request extends ExpressRequest {
+  usuario?: {
+    uid: string;
+    email?: string;
+  };
+}
 
 export class ControladorTareas {
+  
+  /**
+   * GET /api/tareas/categorias - Obtener lista de categorías de prioridad
+   */
+  async obtenerCategorias(req: Request, res: Response) {
+    try {
+      return res.json({
+        categorias: CATEGORIAS_PRIORIDAD
+      });
+    } catch (error: any) {
+      console.error('Error en obtenerCategorias:', error);
+      return res.status(500).json({
+        error: 'Error al obtener categorías',
+        detalle: error.message
+      });
+    }
+  }
   
   async crearTarea(req: Request, res: Response) {
     try {
@@ -24,8 +48,10 @@ export class ControladorTareas {
         return res.status(400).json({ error: 'La fecha de vencimiento es requerida' });
       }
       
-      if (datos.beneficio === undefined || datos.beneficio < 0 || datos.beneficio > 100) {
-        return res.status(400).json({ error: 'El beneficio debe estar entre 0 y 100' });
+      if (!datos.beneficioCategoriaId || !esCategorialValida(datos.beneficioCategoriaId)) {
+        return res.status(400).json({ 
+          error: 'Debe seleccionar una categoría de prioridad válida' 
+        });
       }
       
       if (!datos.horasEstimadas || datos.horasEstimadas <= 0) {
@@ -109,7 +135,6 @@ export class ControladorTareas {
       });
     }
   }
-  
   async actualizarTarea(req: Request, res: Response) {
     try {
       const usuarioId = req.usuario?.uid;
@@ -118,6 +143,13 @@ export class ControladorTareas {
       
       if (!usuarioId) {
         return res.status(401).json({ error: 'No autenticado' });
+      }
+      
+      // Validar categoría si se está actualizando
+      if (datos.beneficioCategoriaId && !esCategorialValida(datos.beneficioCategoriaId)) {
+        return res.status(400).json({ 
+          error: 'Categoría de prioridad inválida' 
+        });
       }
       
       const tarea = await servicioTareas.actualizarTarea(id, usuarioId, datos);
@@ -208,9 +240,6 @@ export class ControladorTareas {
     }
   }
   
-  /**
-   * POST /api/tareas/:id/subtareas - Agregar subtarea
-   */
   async agregarSubtarea(req: Request, res: Response) {
     try {
       const usuarioId = req.usuario?.uid;
@@ -246,9 +275,6 @@ export class ControladorTareas {
     }
   }
   
-  /**
-   * PATCH /api/tareas/:id/subtareas/:subtareaId - Actualizar subtarea
-   */
   async actualizarSubtarea(req: Request, res: Response) {
     try {
       const usuarioId = req.usuario?.uid;
@@ -286,9 +312,6 @@ export class ControladorTareas {
     }
   }
   
-  /**
-   * DELETE /api/tareas/:id/subtareas/:subtareaId - Eliminar subtarea
-   */
   async eliminarSubtarea(req: Request, res: Response) {
     try {
       const usuarioId = req.usuario?.uid;
